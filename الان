@@ -1,0 +1,197 @@
+import mineflayer from "mineflayer";
+import express from "express";
+
+const app = express();
+
+// صفحة الفحص لـ uptime robot
+app.get("/", (req, res) => {
+  console.log("🌐 Ping received from uptime monitor");
+  res.send("Bot is running!");
+});
+
+// =============================
+// ✔️ تعديل Replit (مهم جداً)
+// =============================
+const port = process.env.PORT || 3000;
+
+app.listen(port, "0.0.0.0", () => {
+  console.log(`🌐 Web server running on port ${port}`);
+});
+
+// =============================
+// 🔁 تشغيل البوت مع إعادة المحاولة كل 5 ثواني
+// =============================
+function startBot() {
+  console.log("🤖 محاولة تشغيل البوت...");
+
+  let bot;
+
+  try {
+    bot = mineflayer.createBot({
+      host: "ameer123123.aternos.me",
+      port: 22301,
+      username: "BotAFK",
+      version: false,
+    });
+  } catch (err) {
+    console.log("❌ السيرفر مغلق... إعادة المحاولة بعد 5 ثواني");
+    return setTimeout(startBot, 5000);
+  }
+
+  // عند تسجيل الدخول
+  bot.on("login", () => {
+    console.log("🔓 تم الاتصال بالسيرفر (Login)");
+  });
+
+  // عند الدخول للعبة
+  bot.once("spawn", () => {
+    console.log("✅ دخل السيرفر بنجاح!");
+    bot.chat("🤖 عدت للعمل!");
+  });
+
+  // =============================
+  // ✔️ أمر !tp
+  // =============================
+  bot.on("chat", async (username, message) => {
+    if (username === bot.username) return;
+
+    if (message === "!tp") {
+      const target = bot.players[username]?.entity;
+
+      if (!target) {
+        bot.chat("🚫 ما اقدر احدد مكانك");
+        return;
+      }
+
+      const pos = target.position;
+
+      try {
+        await bot.teleport(pos);
+        bot.chat("✨ تم التيلبورت!");
+        console.log(`➡️ تيلبورت إلى ${username}`);
+      } catch (err) {
+        bot.chat("❌ خطأ بالتيلبورت!");
+        console.log(err);
+      }
+    }
+  });
+
+  // =============================
+  // 🛡️ SUPER ANTI-AFK (أقوى من السابق)
+  // =============================
+
+  function safeAction(action) {
+    if (!bot || !bot.entity) return; // حماية من undefined
+    action();
+  }
+
+  // 1 — حركة عشوائية قوية
+  setInterval(() => {
+    safeAction(() => {
+      const moves = ["forward", "back", "left", "right"];
+      const move = moves[Math.floor(Math.random() * moves.length)];
+
+      bot.setControlState(move, true);
+      setTimeout(() => bot.setControlState(move, false), 500);
+
+      console.log("🚶 حركة قوية:", move);
+    });
+  }, 3000);
+
+  // 2 — Jump + Punch
+  setInterval(() => {
+    safeAction(() => {
+      bot.setControlState("jump", true);
+      setTimeout(() => bot.setControlState("jump", false), 250);
+
+      bot.swingArm();
+      console.log("🦘 Jump + ✊ Punch!");
+    });
+  }, 5000);
+
+  // 3 — دوران كاميرا طبيعي
+  setInterval(() => {
+    safeAction(() => {
+      const yaw = bot.entity.yaw + (Math.random() * 1.5 - 0.75);
+      const pitch = (Math.random() * 0.6 - 0.3);
+
+      bot.look(yaw, pitch, true);
+      console.log("👀 Camera look");
+    });
+  }, 3500);
+
+  // 4 — مشي دائري
+  setInterval(() => {
+    safeAction(() => {
+      const newYaw = bot.entity.yaw + 0.5;
+      bot.look(newYaw, 0, true);
+
+      bot.setControlState("forward", true);
+      setTimeout(() => bot.setControlState("forward", false), 900);
+
+      console.log("⭕ Circle Walk");
+    });
+  }, 7000);
+
+  // 5 — اهتزاز بسيط (مثل اللاعب)
+  setInterval(() => {
+    safeAction(() => {
+      const yaw = bot.entity.yaw + (Math.random() * 0.5 - 0.25);
+      bot.look(yaw, 0, true);
+    });
+  }, 1500);
+
+  // 6 — رسالة AFK
+  setInterval(() => {
+    bot.chat("🤖 Still active…");
+  }, 60000);
+
+  // ============================================
+  // 7 — Sprint Boost Dash (الحركة القوية الجديدة)
+  // ============================================
+  setInterval(() => {
+    safeAction(() => {
+      bot.setControlState("sprint", true);
+
+      const moves = ["forward", "left", "right"];
+      const move = moves[Math.floor(Math.random() * moves.length)];
+
+      bot.setControlState(move, true);
+
+      setTimeout(() => {
+        bot.setControlState(move, false);
+        bot.setControlState("sprint", false);
+      }, 600);
+
+      const yaw = bot.entity.yaw + (Math.random() * 2 - 1);
+      const pitch = Math.random() * 0.4 - 0.2;
+
+      bot.look(yaw, pitch, true);
+
+      console.log("⚡ Sprint Dash:", move);
+    });
+  }, 8000);
+
+  // =============================
+  // 🔄 Auto Reconnect + Retry
+  // =============================
+  bot.on("end", () => {
+    console.log("⚠️ الاتصال انقطع!");
+    console.log("🔁 إعادة المحاولة بعد 5 ثواني...");
+    setTimeout(startBot, 5000);
+  });
+
+  bot.on("kicked", (reason) => {
+    console.log("❌ تم طرد البوت:", reason);
+    console.log("🔁 إعادة المحاولة بعد 5 ثواني...");
+    setTimeout(startBot, 5000);
+  });
+
+  bot.on("error", (err) => {
+    console.log("❌ Error:", err.message);
+    console.log("🔁 إعادة المحاولة بعد 5 ثواني...");
+    setTimeout(startBot, 5000);
+  });
+}
+
+startBot();
